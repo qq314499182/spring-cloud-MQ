@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:int="http://www.springframework.org/schema/integration"
+       xmlns:int-jdbc="http://www.springframework.org/schema/integration/jdbc"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+    http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+    http://www.springframework.org/schema/context
+    http://www.springframework.org/schema/context/spring-context-3.0.xsd
+    http://www.springframework.org/schema/integration
+    http://www.springframework.org/schema/integration/spring-integration-5.0.xsd
+    http://www.springframework.org/schema/integration/jdbc
+    http://www.springframework.org/schema/integration/jdbc/spring-integration-jdbc-2.0.xsd">
+    <context:component-scan base-package="com.yonyou.demo"/>
+
+    <int:channel id="target"/>
+
+    <int-jdbc:inbound-channel-adapter channel="target"
+                                      data-source="dataSource"
+                                      query="select p.id as ppid,p.name as ppname from person p,person_status s where p.id=s.person_id and s.p_status='new'"
+                                      update="update person_status as st set st.p_status='old' where person_id in (:ppid)"
+    >
+        <!-- 每隔多少毫秒去抓取 -->
+        <int:poller fixed-rate="5000" >
+            <int:transactional/>
+        </int:poller>
+        <!--  指定时刻抓取
+        <int:poller max-messages-per-poll="1">
+            <int:transactional/>
+            <int:cron-trigger expression="0 0 3 * * ?"/>
+        </int:poller>
+        -->
+    </int-jdbc:inbound-channel-adapter>
+    <int:service-activator input-channel="target" ref="jdbcMessageHandler"/>
+    <bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="driverClassName" value="com.mysql.jdbc.Driver" />
+        <property name="url" value="jdbc:mysql://172.20.17.165:3306/zhaoke" />
+        <property name="username" value="root" />
+        <property name="password" value="123456" />
+    </bean>
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+    <!--<bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource"/>-->
+</beans>
